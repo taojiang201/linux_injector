@@ -1,4 +1,4 @@
-all: lurker  saruman parasite parasite_so.so bkdoor mkbin
+all: lurker  saruman parasite parasite_so.so bkdoor mkbin bkdoor_so.so
 lurker: lurker.o  osis_tools.o osis_FileMmap.o   SCS.o osis_parasite.o osis_elf.o \
 osis_ptrace.o boot_trap.o dlopen_mode.o mclone.o
 	g++ -std=c++11 -g lurker.o osis_tools.o osis_FileMmap.o   SCS.o osis_parasite.o \
@@ -30,12 +30,14 @@ bkdoor.o:bkdoor.s
 	as --64 -g ./bkdoor.s -o bkdoor.o
 
 clean:
-	rm -f *.o lurker saruman parasite  parasite_so.so bkdoor
+	rm -f *.o lurker saruman parasite  parasite_so.so bkdoor bkdoor_so.so
 saruman:host.c
 	gcc -m64 -g -o saruman host.c -lpthread
 parasite:
 	gcc -m64 -g -fpic -pie -o parasite parasite.c
 parasite_so.so:parasit_so.c
 	gcc -m64 -g -D_GNU_SOURCE -shared -o parasite_so.so -fPIC parasit_so.c
+bkdoor_so.so:bkdoor_so.c
+	gcc -m64 -g -D_GNU_SOURCE -shared -o bkdoor_so.so -Wl,--entry=parasite_run_ -fPIC bkdoor_so.c
 mkbin:mkbin.cpp
 	g++  -m64 -g -o mkbin mkbin.cpp osis_tools.o osis_FileMmap.o   SCS.o osis_elf.o -std=c++11
