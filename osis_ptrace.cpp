@@ -883,11 +883,31 @@ int OSIS::check_process_state(pid_t pid)
     // 读取进程状态
     fscanf(f, "%*d %*s %c", &state);
     fclose(f);
-
+    //  printf("the stat=%c\n",state);
     // 检查是否在运行或停止状态
     return (state == 'R' || state == 'T') ? 1 : 0;
+  
 }
 // 检查进程状态
+int OSIS::check_process_state_simple(pid_t pid,char* path)
+{
+   // char path[32];
+    char state;
+    FILE *f;
+
+  //  snprintf(path, sizeof(path), "/proc/%d/stat", pid);
+    f = fopen(path, "r");
+    if (!f) return -1;
+
+    // 读取进程状态
+    fscanf(f, "%*d %*s %c", &state);
+    fclose(f);
+    //  printf("the stat=%c\n",state);
+    // 检查是否在运行或停止状态
+    return (state == 'R' || state == 'T') ? 1 : 0;
+  
+}
+// 检查线程状态
 int OSIS::check_thread_state(pid_t pid, pid_t tid)
 {
     char path[32];
@@ -904,6 +924,24 @@ int OSIS::check_thread_state(pid_t pid, pid_t tid)
 
     // 检查是否在运行或停止状态
     return (state == 'R' || state == 'T') ? 1 : 0;
+}
+int OSIS::check_thread_state_simple(pid_t pid,pid_t tid,char* path)
+{
+   // char path[32];
+    char state;
+    FILE *f;
+
+  //  snprintf(path, sizeof(path), "/proc/%d/task/%d/stat", pid, tid);
+    f = fopen(path, "r");
+    if (!f) return -1;
+
+    // 读取进程状态
+    fscanf(f, "%*d %*s %c", &state);
+    fclose(f);
+
+    // 检查是否在运行或停止状态
+    return (state == 'R' || state == 'T') ? 1 : 0;
+
 }
 bool OSIS::is_process_traced(pid_t pid)
 {
@@ -972,15 +1010,22 @@ bool OSIS::wait_for_process_ready(pid_t pid, int timeout_ms)
 {
     int waited = 0;
     const int check_interval = 10;  // 每10ms检查一次
-
+    char path[32];
+    snprintf(path, sizeof(path), "/proc/%d/stat", pid);
     while (waited < timeout_ms) {
-        if (check_process_state(pid)) {
+        if (check_process_state_simple(pid,path)) {
             return true;
         }
 
         // 短暂睡眠
         usleep(check_interval * 1000);
         waited += check_interval;
+        
+         if (kill(pid,SIGCONT) == -1) {
+            if (errno != ESRCH) {
+                printf("Failed to continue thread %d: %s\n", pid, strerror(errno));
+            }
+        }
     }
     return false;
 }
@@ -989,15 +1034,22 @@ bool OSIS::wait_for_thread_ready(pid_t pid, pid_t tid, int timeout_ms)
 {
     int waited = 0;
     const int check_interval = 10;  // 每10ms检查一次
+     char path[32];
+    snprintf(path, sizeof(path), "/proc/%d/task/%d/stat", pid, tid);
 
     while (waited < timeout_ms) {
-        if (check_thread_state(pid, tid)) {
+        if (check_thread_state_simple(pid, tid,path)) {
             return true;
         }
 
         // 短暂睡眠
         usleep(check_interval * 1000);
         waited += check_interval;
+         if (tgkill(pid,tid,SIGCONT) == -1) {
+            if (errno != ESRCH) {
+                printf("Failed to continue thread %d: %s\n", pid, strerror(errno));
+            }
+        }
     }
     return false;
 }
@@ -1017,7 +1069,7 @@ int OSIS::safe_ptrace_attach(pid_t pid)
     while (retry_count--) {
         // 检查进程是否存在
         if (kill(pid, 0) == -1) {
-            printf("Process %d does not exist\n", pid);
+            printf("Process %d does not exist or Permission denied \n", pid);
             return -1;
         }
 
@@ -1146,7 +1198,12 @@ int OSIS::detach_all_threads(pid_t pid)
         }
         // 恢复所有线程
 
-        if (kill(tid, SIGCONT) == -1) {
+      /* if (kill(tid, SIGCONT) == -1) {
+            if (errno != ESRCH) {
+                printf("Failed to continue thread %d: %s\n", tid, strerror(errno));
+            }*/
+           
+           if (tgkill(pid,tid,SIGCONT) == -1) {
             if (errno != ESRCH) {
                 printf("Failed to continue thread %d: %s\n", tid, strerror(errno));
             }
