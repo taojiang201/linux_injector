@@ -332,7 +332,7 @@ int OSIS::Osis_Parasite::injectCode_dlopen_so(pid_t pid)
     this->get_msa_state(ct_state);
     if (!((ct_state ^ OSIS_PT_DETACHED) << 15)) {
         // 1. 首先等待进程进入可调试状态
-        if (!OSIS::wait_for_process_ready(pid)) {
+        if (!OSIS::wait_for_process_ready(pid,50000)) {
             printf("Process %d not in debuggable state\n", pid);
             return -1;
         }

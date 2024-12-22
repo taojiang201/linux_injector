@@ -1014,13 +1014,15 @@ bool OSIS::wait_for_process_ready(pid_t pid, int timeout_ms)
     snprintf(path, sizeof(path), "/proc/%d/stat", pid);
     while (waited < timeout_ms) {
         if (check_process_state_simple(pid,path)) {
+            kill(pid,SIGSTOP);
             return true;
         }
 
         // 短暂睡眠
         usleep(check_interval * 1000);
         waited += check_interval;
-        
+        if(waited%5000==0)
+            printf("check proc(%d) stat,wait...\n",pid); 
          if (kill(pid,SIGCONT) == -1) {
             if (errno != ESRCH) {
                 printf("Failed to continue thread %d: %s\n", pid, strerror(errno));
@@ -1039,13 +1041,16 @@ bool OSIS::wait_for_thread_ready(pid_t pid, pid_t tid, int timeout_ms)
 
     while (waited < timeout_ms) {
         if (check_thread_state_simple(pid, tid,path)) {
+        //    tgkill(pid,tid,SIGSTOP);
             return true;
         }
 
         // 短暂睡眠
         usleep(check_interval * 1000);
         waited += check_interval;
-         if (tgkill(pid,tid,SIGCONT) == -1) {
+        if(waited%5000==0)
+            printf("check thread(%d) stat,wait...\n",tid);
+         if (kill(tid,SIGCONT) == -1) {
             if (errno != ESRCH) {
                 printf("Failed to continue thread %d: %s\n", pid, strerror(errno));
             }
@@ -1149,7 +1154,7 @@ int OSIS::pause_other_threads(pid_t pid)
         }
 
         // 附加到该线程并暂停
-        if (!OSIS::wait_for_thread_ready(pid, tid)) {
+        if (!OSIS::wait_for_thread_ready(pid, tid,50000)) {
             printf("Process %d not in debuggable state\n", pid);
             continue;
         }

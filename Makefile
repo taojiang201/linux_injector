@@ -30,7 +30,7 @@ bkdoor.o:bkdoor.s
 	as --64 -g ./bkdoor.s -o bkdoor.o
 
 clean:
-	rm -f *.o lurker saruman parasite  parasite_so.so bkdoor bkdoor_so.so
+	rm -f *.o lurker saruman parasite  parasite_so.so bkdoor bkdoor_so.so mkbin
 saruman:host.c
 	gcc -m64 -g -o saruman host.c -lpthread
 parasite:
